@@ -9,8 +9,14 @@ Rows whose answer no longer appears verbatim in the translated context are dropp
 extractive QA needs a span. This is the same filter the 2022 project applied, now with the
 reason for every dropped row counted.
 
+Inputs can be the CSV export (columns ``Paragraphs``, ``Questions``, ``Answers``) and/or
+JSON files in SQuAD format (``{"data": [...]}``) or the simpletransformers list format
+(``[{"context", "qas": [...]}]``). Several files are merged and de-duplicated, so old
+pre-split train/validation/test files can be pooled and re-split by paragraph.
+
 Usage:
     python -m urduqa.prepare data/raw/final_translated_dataset.csv data/processed/all.jsonl
+    python -m urduqa.prepare TRAIN90.json VALIDATION5.json TEST5.json data/processed/all.jsonl
 """
 
 from __future__ import annotations
@@ -38,6 +44,31 @@ def _pick(df: pd.DataFrame, key: str) -> str:
         if name in df.columns:
             return name
     raise KeyError(f"No {key} column found; expected one of {_COLUMNS[key]}, got {list(df.columns)}")
+
+
+def _rows_from_paragraphs(paragraphs) -> list[tuple[str, str, str]]:
+    rows = []
+    for para in paragraphs:
+        for qa in para.get("qas", []):
+            answers = qa.get("answers") or []
+            if answers:
+                rows.append((para["context"], qa["question"], answers[0]["text"]))
+    return rows
+
+
+def load_any(path: Path) -> pd.DataFrame:
+    """Load a CSV or a SQuAD-style / simpletransformers-style JSON file as one DataFrame."""
+    path = Path(path)
+    if path.suffix.lower() != ".json":
+        return pd.read_csv(path)
+    obj = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(obj, dict) and "data" in obj:  # official SQuAD layout
+        paragraphs = [p for article in obj["data"] for p in article["paragraphs"]]
+    elif isinstance(obj, list):  # simpletransformers layout
+        paragraphs = obj
+    else:
+        raise ValueError(f"Unrecognised JSON layout in {path}")
+    return pd.DataFrame(_rows_from_paragraphs(paragraphs), columns=["Paragraphs", "Questions", "Answers"])
 
 
 def paragraph_id(context: str) -> str:
@@ -95,13 +126,22 @@ def read_jsonl(path: Path) -> list[dict]:
 
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__.split("\n\n")[0])
-    ap.add_argument("csv", type=Path)
-    ap.add_argument("out", type=Path)
+    ap.add_argument("inputs", type=Path, nargs="+", help="one or more CSV/JSON files, then the output path")
     args = ap.parse_args()
+    *inputs, out = args.inputs
+    if not inputs:
+        ap.error("give at least one input file and an output path")
 
-    df = pd.read_csv(args.csv)
+    frames = []
+    for path in inputs:
+        part = load_any(path)
+        c, q, a = _pick(part, "context"), _pick(part, "question"), _pick(part, "answer")
+        part = part[[c, q, a]].set_axis(["Paragraphs", "Questions", "Answers"], axis=1)
+        print(f"{path.name}: {len(part)} rows")
+        frames.append(part)
+    df = pd.concat(frames, ignore_index=True)
     records, dropped = prepare(df)
-    write_jsonl(records, args.out)
+    write_jsonl(records, out)
     paragraphs = len({r["paragraph_id"] for r in records})
     print(f"rows in: {len(df)}  kept: {len(records)}  paragraphs: {paragraphs}")
     for reason, n in dropped.most_common():

@@ -7,6 +7,9 @@ The data files are not stored in this repository.
 
 **Build the splits:**
 
+Old pre-split JSON files (e.g. `TRAIN90.json`, `VALIDATION5.json`, `TEST5.json`) work too: pass
+them all to `prepare` and they are pooled, de-duplicated and re-split by paragraph.
+
 ```bash
 python -m urduqa.prepare data/raw/final_translated_dataset.csv data/processed/all.jsonl
 python -m urduqa.split data/processed/all.jsonl data/processed --seed 13

@@ -90,3 +90,17 @@ def test_leakage_detects_shared_paragraphs():
     train = [{"paragraph_id": "p1"}, {"paragraph_id": "p2"}]
     dev = [{"paragraph_id": "p1"}, {"paragraph_id": "p3"}]
     assert leakage(train, dev) == pytest.approx(0.5)
+
+
+def test_load_any_reads_simpletransformers_and_squad_json(tmp_path):
+    import json
+    from urduqa.prepare import load_any
+
+    para = {"context": "فوربس میگزین 2015", "qas": [{"id": "1", "question": "کون؟", "answers": [{"text": "فوربس", "answer_start": 0}]}]}
+    st = tmp_path / "st.json"
+    st.write_text(json.dumps([para], ensure_ascii=False), encoding="utf-8")
+    sq = tmp_path / "sq.json"
+    sq.write_text(json.dumps({"data": [{"title": "t", "paragraphs": [para]}]}, ensure_ascii=False), encoding="utf-8")
+    for path in (st, sq):
+        df = load_any(path)
+        assert list(df.itertuples(index=False, name=None)) == [("فوربس میگزین 2015", "کون؟", "فوربس")]
