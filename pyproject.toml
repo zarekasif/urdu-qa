@@ -12,6 +12,7 @@ dependencies = ["pandas>=2.0"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]
+train = ["transformers>=4.44", "datasets>=2.20", "accelerate>=0.33", "torch>=2.2"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

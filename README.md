@@ -5,7 +5,7 @@ This repository revisits my 2022 BSc final-year project, an Urdu version of SQuA
 machine translation, and re-evaluates it properly: paragraph-level splits with no train/test
 overlap, standard SQuAD metrics, and correctly trained baselines.
 
-**Status:** v0.1. The data pipeline and evaluation are in place and tested. Model re-runs are next.
+**Status:** v0.1. Data pipeline, evaluation and the XLM-RoBERTa training script are in place and tested; first clean results are next.
 
 ## Why a re-evaluation
 
@@ -38,12 +38,17 @@ python -m urduqa.evaluate data/processed/test.jsonl outputs/<model>/predictions.
 pytest
 ```
 
+**Train on a free GPU:** open [`notebooks/train_xlmr_colab.ipynb`](notebooks/train_xlmr_colab.ipynb)
+in [Colab](https://colab.research.google.com/github/zarekasif/urdu-qa/blob/main/notebooks/train_xlmr_colab.ipynb).
+
 | Module | Purpose |
 | --- | --- |
 | `urduqa.prepare` | CSV to SQuAD-style JSONL: HTML-entity repair, answer-span location, dedup, drop reasons counted |
 | `urduqa.split` | 80/10/10 split by paragraph, with a leakage check |
 | `urduqa.metrics` | SQuAD Exact Match and token F1 with Urdu normalisation (Arabic/Urdu letter variants, Urdu digits, diacritics, `۔ ، ؟`) |
 | `urduqa.evaluate` | Score a `{id: answer}` predictions file; missing predictions count as wrong |
+| `urduqa.qa` | Sliding-window features and best-span answer extraction for any HF fast tokenizer |
+| `urduqa.train_extractive` | Fine-tune and evaluate an extractive model (default XLM-RoBERTa base) |
 | `legacy/` | The original 2022 notebooks, outputs stripped |
 
 ## Roadmap
