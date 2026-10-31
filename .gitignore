@@ -1,0 +1,15 @@
+# Data and model artefacts stay out of git; see data/README.md
+data/raw/
+data/processed/
+outputs/
+*.ckpt
+*.bin
+*.pt
+*.safetensors
+
+# Python
+__pycache__/
+*.egg-info/
+.venv/
+.pytest_cache/
+.ipynb_checkpoints/
