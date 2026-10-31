@@ -59,3 +59,7 @@ Original project (Forman Christian College, Lahore, 2022): **Salman Anwar, Zarek
 Advisors: Ali Faheem, Akheem Yousaf. Re-evaluation and maintenance: Zarek Asif.
 
 Built on [SQuAD v1.1](https://rajpurkar.github.io/SQuAD-explorer/) (Rajpurkar et al., 2016), CC BY-SA 4.0.
+
+## Licence
+
+Code: [MIT](LICENSE). Data derived from SQuAD v1.1 follows its CC BY-SA 4.0 licence.
