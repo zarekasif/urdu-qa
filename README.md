@@ -5,7 +5,7 @@ This repository revisits my 2022 BSc final-year project, an Urdu version of SQuA
 machine translation, and re-evaluates it properly: paragraph-level splits with no train/test
 overlap, standard SQuAD metrics, and correctly trained baselines.
 
-**Status:** v0.1. Data pipeline, evaluation and the XLM-RoBERTa training script are in place and tested; first clean results are next.
+**Status:** v0.1. First clean result: XLM-RoBERTa base, 61.7 EM / 73.2 F1 on the leakage-free dev set.
 
 ## Why a re-evaluation
 
@@ -18,6 +18,18 @@ reported scores (details in [`legacy/README.md`](legacy/README.md)):
 
 The only result the old code supports is **mT5-small: 63.9% exact match, 0.71 ROUGE-1** on a
 2,017-question random-row split. That is an upper bound until it is re-run on clean splits.
+
+## Results
+
+Paragraph-level split, standard SQuAD Exact Match and token F1 with Urdu normalisation.
+
+| Model | Split | Questions | Exact match | F1 |
+| --- | --- | --- | --- | --- |
+| XLM-RoBERTa base (2 epochs, lr 3e-5, 384 tokens, stride 128) | dev | 3,959 | 61.7 | 73.2 |
+
+Test-set score and an mT5 re-run on the same split are next. For comparison, the 2022 mT5
+number (63.9% exact match) was measured on a split where ~92% of evaluation paragraphs were
+also in training.
 
 ## Dataset
 
@@ -51,11 +63,12 @@ in [Colab](https://colab.research.google.com/github/zarekasif/urdu-qa/blob/main/
 | `urduqa.evaluate` | Score a `{id: answer}` predictions file; missing predictions count as wrong |
 | `urduqa.qa` | Sliding-window features and best-span answer extraction for any HF fast tokenizer |
 | `urduqa.train_extractive` | Fine-tune and evaluate an extractive model (default XLM-RoBERTa base) |
+| `urduqa.predict` | Score a saved model on a split without retraining (for the one-off test run) |
 | `legacy/` | The original 2022 notebooks, outputs stripped |
 
 ## Roadmap
 
-1. Re-train XLM-RoBERTa (extractive) and mT5 (generative) on the paragraph-level split; report EM/F1.
+1. ~~XLM-RoBERTa base on the paragraph-level split~~ (done, dev); report test once; re-run mT5 on the same split.
 2. Zero-shot and few-shot baselines with current open multilingual LLMs.
 3. Error analysis of translation artefacts: answer spans lost or shifted by translation.
 4. Publish the cleaned splits on the Hugging Face Hub and a small demo.
