@@ -12,16 +12,18 @@ overlap, standard SQuAD metrics, and correctly trained baselines.
 Reviewing the original notebooks in 2026 turned up problems that inflated or invalidated the
 reported scores (details in [`legacy/README.md`](legacy/README.md)):
 
-- Train and validation were split by row, so most validation paragraphs were also seen in training.
+- The mT5 run split train/validation by row: about 92% of validation questions came from paragraphs seen in training.
 - The "F1" was a custom metric, not SQuAD token F1; the headline 73% was ROUGE-1.
-- The XLM-RoBERTa run used a learning rate of 4e-10 and never learned.
+- The XLM-RoBERTa run used a learning rate of 4e-10 and never learned; the only saved checkpoint is English RoBERTa, not XLM-R.
 
 The only result the old code supports is **mT5-small: 63.9% exact match, 0.71 ROUGE-1** on a
 2,017-question random-row split. That is an upper bound until it is re-run on clean splits.
 
 ## Dataset
 
-- About 40k Urdu questions over 14.4k paragraphs, from SQuAD v1.1 via Google Cloud Translation.
+- 40,273 Urdu questions over 14,387 paragraphs (after removing 55 duplicates), from SQuAD v1.1
+  via Google Cloud Translation.
+- Paragraph-level split (seed 13): train 32,290 / dev 3,959 / test 4,024 questions, 0% overlap.
 - Rows whose answer did not survive translation verbatim in the context are dropped, since
   extractive QA needs an answer span.
 - Data files are not in the repository; see [`data/README.md`](data/README.md).
@@ -31,7 +33,7 @@ The only result the old code supports is **mT5-small: 63.9% exact match, 0.71 RO
 ```bash
 pip install -e ".[dev]"
 
-python -m urduqa.prepare data/raw/final_translated_dataset.csv data/processed/all.jsonl
+python -m urduqa.prepare "data/raw/URDU TRANSLATED DATASET.csv" data/processed/all.jsonl
 python -m urduqa.split   data/processed/all.jsonl data/processed --seed 13
 python -m urduqa.evaluate data/processed/test.jsonl outputs/<model>/predictions.json
 

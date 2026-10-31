@@ -103,4 +103,15 @@ def test_load_any_reads_simpletransformers_and_squad_json(tmp_path):
     sq.write_text(json.dumps({"data": [{"title": "t", "paragraphs": [para]}]}, ensure_ascii=False), encoding="utf-8")
     for path in (st, sq):
         df = load_any(path)
-        assert list(df.itertuples(index=False, name=None)) == [("فوربس میگزین 2015", "کون؟", "فوربس")]
+        assert list(df.itertuples(index=False, name=None)) == [("فوربس میگزین 2015", "کون؟", "فوربس", 0)]
+
+
+def test_prepare_prefers_the_datasets_own_answer_offset():
+    # The answer occurs twice; the given offset points at the second occurrence.
+    ctx = "پہلے 2003 پھر &quot;دوبارہ&quot; 2003"
+    df = pd.DataFrame({"Paragraphs": [ctx], "Questions": ["کب؟"], "Answers": ["2003"], "answer_start": [ctx.rindex("2003")]})
+    records, _ = prepare(df)
+    r = records[0]
+    start = r["answers"]["answer_start"][0]
+    assert start == r["context"].rindex("2003")
+    assert r["context"][start : start + 4] == "2003"

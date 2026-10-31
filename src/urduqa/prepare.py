@@ -15,7 +15,7 @@ JSON files in SQuAD format (``{"data": [...]}``) or the simpletransformers list 
 pre-split train/validation/test files can be pooled and re-split by paragraph.
 
 Usage:
-    python -m urduqa.prepare data/raw/final_translated_dataset.csv data/processed/all.jsonl
+    python -m urduqa.prepare "data/raw/URDU TRANSLATED DATASET.csv" data/processed/all.jsonl
     python -m urduqa.prepare TRAIN90.json VALIDATION5.json TEST5.json data/processed/all.jsonl
 """
 
@@ -36,23 +36,26 @@ _COLUMNS = {
     "context": ["Paragraphs", "context", "Context"],
     "question": ["Questions", "question", "Question"],
     "answer": ["Answers", "answer_text", "text", "Answer"],
+    "start": ["answer_start", "Start Answer"],
 }
 
 
-def _pick(df: pd.DataFrame, key: str) -> str:
+def _pick(df: pd.DataFrame, key: str, required: bool = True) -> str | None:
     for name in _COLUMNS[key]:
         if name in df.columns:
             return name
+    if not required:
+        return None
     raise KeyError(f"No {key} column found; expected one of {_COLUMNS[key]}, got {list(df.columns)}")
 
 
-def _rows_from_paragraphs(paragraphs) -> list[tuple[str, str, str]]:
+def _rows_from_paragraphs(paragraphs) -> list[tuple]:
     rows = []
     for para in paragraphs:
         for qa in para.get("qas", []):
             answers = qa.get("answers") or []
             if answers:
-                rows.append((para["context"], qa["question"], answers[0]["text"]))
+                rows.append((para["context"], qa["question"], answers[0]["text"], answers[0].get("answer_start")))
     return rows
 
 
@@ -68,7 +71,19 @@ def load_any(path: Path) -> pd.DataFrame:
         paragraphs = obj
     else:
         raise ValueError(f"Unrecognised JSON layout in {path}")
-    return pd.DataFrame(_rows_from_paragraphs(paragraphs), columns=["Paragraphs", "Questions", "Answers"])
+    return pd.DataFrame(_rows_from_paragraphs(paragraphs), columns=["Paragraphs", "Questions", "Answers", "answer_start"])
+
+
+def _given_start(raw_context: str, raw_answer: str, value) -> int | None:
+    """Return the dataset's own answer offset, re-mapped onto the cleaned context, if usable."""
+    try:
+        start = int(value)
+    except (TypeError, ValueError):
+        return None
+    if start < 0 or str(raw_context)[start : start + len(str(raw_answer))] != str(raw_answer):
+        return None
+    # Offsets refer to the raw text; map them onto the cleaned text via the cleaned prefix.
+    return len(clean_text(str(raw_context)[:start] + "x")) - 1
 
 
 def paragraph_id(context: str) -> str:
@@ -77,6 +92,7 @@ def paragraph_id(context: str) -> str:
 
 def prepare(df: pd.DataFrame) -> tuple[list[dict], Counter]:
     c_col, q_col, a_col = _pick(df, "context"), _pick(df, "question"), _pick(df, "answer")
+    s_col = _pick(df, "start", required=False)
     records: list[dict] = []
     dropped: Counter = Counter()
     seen: set[tuple[str, str]] = set()
@@ -89,7 +105,13 @@ def prepare(df: pd.DataFrame) -> tuple[list[dict], Counter]:
         if not (context and question and answer):
             dropped["empty_field"] += 1
             continue
-        start = context.find(answer)
+        start = None
+        if s_col is not None:
+            start = _given_start(row[c_col], row[a_col], row[s_col])
+            if start is not None and context[start : start + len(answer)] != answer:
+                start = None
+        if start is None:
+            start = context.find(answer)
         if start < 0:
             dropped["answer_not_in_context"] += 1
             continue
@@ -135,8 +157,13 @@ def main() -> None:
     frames = []
     for path in inputs:
         part = load_any(path)
-        c, q, a = _pick(part, "context"), _pick(part, "question"), _pick(part, "answer")
-        part = part[[c, q, a]].set_axis(["Paragraphs", "Questions", "Answers"], axis=1)
+        cols = [_pick(part, "context"), _pick(part, "question"), _pick(part, "answer")]
+        names = ["Paragraphs", "Questions", "Answers"]
+        start_col = _pick(part, "start", required=False)
+        if start_col is not None:
+            cols.append(start_col)
+            names.append("answer_start")
+        part = part[cols].set_axis(names, axis=1)
         print(f"{path.name}: {len(part)} rows")
         frames.append(part)
     df = pd.concat(frames, ignore_index=True)

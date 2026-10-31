@@ -16,17 +16,23 @@ The maintained pipeline lives in [`../src`](../src).
 
 ## Known issues found on review (2026)
 
-These are why the project is being re-run in `src/`:
+Checked against the full project folder (notebooks, data files and the saved checkpoint):
 
-1. **Train/validation leakage.** `mt5_qa.ipynb` splits rows at random (95/5). The data has
-   ~2.8 questions per paragraph, so most validation paragraphs also appear in training.
-2. **Non-standard metrics.** The custom "F1" only scores a prediction when the gold answer is
-   a substring of it, and is not SQuAD token-overlap F1. The 73% figure in the 2022 report
-   matches ROUGE-1 from an earlier run, not F1.
-3. **XLM-RoBERTa did not train.** The final run uses `learning_rate = 4e-10`; training loss
-   stays flat (~4.95) and evaluation gets 5 of 6,049 answers right.
-4. **Answer selection bug.** XLM-R predictions use `max(res)` over the n-best list, which picks
-   the alphabetically last string rather than the highest-scoring answer.
+1. **mT5: train/validation leakage.** `mt5_qa.ipynb` splits the full CSV at random by row (95/5).
+   With 2.8 questions per paragraph, about 92% of validation questions come from paragraphs
+   that are also in training (measured by repeating the split). The other split files in the
+   project (`TRAIN/VALIDATION/TEST.json`, 70/15/15, and `TRAIN90/VALIDATION5/TEST5.json`) are
+   split by paragraph and are clean; the mT5 run did not use them.
+2. **Non-standard metrics.** The custom "F1" only scores a prediction when the gold answer is a
+   substring of it, and is not SQuAD token-overlap F1. The 73% "F1" in the 2022 report matches
+   ROUGE-1 from an earlier mT5 run.
+3. **No working XLM-RoBERTa model.** The final run in `xlm_roberta_qa.ipynb` uses
+   `learning_rate = 4e-10`; loss stays flat and evaluation gets 5 of 6,049 answers right. The only
+   saved checkpoint (`best_model`) is English `roberta-base` (BPE vocabulary, not XLM-R), trained
+   with `max_seq_length = 128`, and its own `eval_results.txt` reports 0 correct of 6,049.
+   No saved artefact supports the 36% figure in the report.
+4. **Answer selection bug.** Predictions use `max(res)` over the n-best list, which picks the
+   alphabetically last string rather than the highest-scoring answer.
 
 ## Results the notebooks actually support
 
