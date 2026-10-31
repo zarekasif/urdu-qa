@@ -15,11 +15,22 @@ Quick pipeline check on a few hundred examples:
 from __future__ import annotations
 
 import argparse
+import inspect
 import json
+import math
 from pathlib import Path
 
 from .metrics import evaluate
 from .qa import postprocess_predictions, prepare_eval_features, prepare_train_features
+
+
+def _supported(cls, **kwargs) -> dict:
+    """Keep only the keyword arguments that this version of ``cls`` accepts."""
+    accepted = inspect.signature(cls.__init__).parameters
+    dropped = sorted(k for k in kwargs if k not in accepted)
+    if dropped:
+        print(f"note: {cls.__name__} in this transformers version does not take {dropped}; skipped")
+    return {k: v for k, v in kwargs.items() if k in accepted}
 
 
 def parse_args() -> argparse.Namespace:
@@ -79,19 +90,27 @@ def main() -> None:
     print(f"{args.eval_split}: {len(eval_raw)} questions -> {len(eval_feats)} windows")
 
     model = AutoModelForQuestionAnswering.from_pretrained(args.model)
+
+    # Warmup as a step count (10% of training): works across transformers versions,
+    # some of which dropped `warmup_ratio`.
+    steps_per_epoch = math.ceil(len(train_feats) / args.batch_size)
+    warmup_steps = int(0.1 * steps_per_epoch * args.epochs)
     training_args = TrainingArguments(
-        output_dir=str(args.out_dir / "checkpoints"),
-        num_train_epochs=args.epochs,
-        learning_rate=args.lr,
-        per_device_train_batch_size=args.batch_size,
-        per_device_eval_batch_size=args.batch_size * 2,
-        warmup_ratio=0.1,
-        weight_decay=0.01,
-        fp16=torch.cuda.is_available(),
-        save_strategy="no",
-        logging_steps=100,
-        report_to="none",
-        seed=args.seed,
+        **_supported(
+            TrainingArguments,
+            output_dir=str(args.out_dir / "checkpoints"),
+            num_train_epochs=args.epochs,
+            learning_rate=args.lr,
+            per_device_train_batch_size=args.batch_size,
+            per_device_eval_batch_size=args.batch_size * 2,
+            warmup_steps=warmup_steps,
+            weight_decay=0.01,
+            fp16=torch.cuda.is_available(),
+            save_strategy="no",
+            logging_steps=100,
+            report_to="none",
+            seed=args.seed,
+        )
     )
     trainer = Trainer(
         model=model,
