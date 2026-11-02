@@ -5,7 +5,7 @@ This repository revisits my 2022 BSc final-year project, an Urdu version of SQuA
 machine translation, and re-evaluates it properly: paragraph-level splits with no train/test
 overlap, standard SQuAD metrics, and correctly trained baselines.
 
-**Status:** v0.1. First clean result: XLM-RoBERTa base, 61.7 EM / 73.2 F1 on the leakage-free dev set.
+**Status:** v0.1. First clean result: XLM-RoBERTa base, **62.3 EM / 73.5 F1** on the held-out test set (unseen paragraphs).
 
 ## Why a re-evaluation
 
@@ -25,11 +25,15 @@ Paragraph-level split, standard SQuAD Exact Match and token F1 with Urdu normali
 
 | Model | Split | Questions | Exact match | F1 |
 | --- | --- | --- | --- | --- |
-| XLM-RoBERTa base (2 epochs, lr 3e-5, 384 tokens, stride 128) | dev | 3,959 | 61.7 | 73.2 |
+| XLM-RoBERTa base | dev | 3,959 | 62.2 | 73.9 |
+| XLM-RoBERTa base | **test** | 4,024 | **62.3** | **73.5** |
 
-Test-set score and an mT5 re-run on the same split are next. For comparison, the 2022 mT5
-number (63.9% exact match) was measured on a split where ~92% of evaluation paragraphs were
-also in training.
+Settings: 2 epochs, learning rate 3e-5, batch 16, 384-token windows with stride 128, seed 13.
+The test set was scored once, with the model trained above. An earlier run with identical
+settings reached 61.7 EM / 73.2 F1 on dev, so run-to-run variation is about half a point.
+
+For comparison, the 2022 mT5 number (63.9% exact match) was measured on a split where ~92% of
+evaluation paragraphs were also in training. An mT5 re-run on the same clean split is next.
 
 ## Dataset
 
@@ -68,7 +72,7 @@ in [Colab](https://colab.research.google.com/github/zarekasif/urdu-qa/blob/main/
 
 ## Roadmap
 
-1. ~~XLM-RoBERTa base on the paragraph-level split~~ (done, dev); report test once; re-run mT5 on the same split.
+1. ~~XLM-RoBERTa base on the paragraph-level split~~ (done: 62.3 EM / 73.5 F1 test). Next: mT5 on the same split.
 2. Zero-shot and few-shot baselines with current open multilingual LLMs.
 3. Error analysis of translation artefacts: answer spans lost or shifted by translation.
 4. Publish the cleaned splits on the Hugging Face Hub and a small demo.
